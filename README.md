@@ -1,6 +1,7 @@
 # multi-hop-hateful-meme-detection
 Course project for Intermediate Deep Learning
 Overleaf linked [here](https://www.overleaf.com/project/6906381970ab34d20b83aa3e)
+
 Brain Dump linked [here](https://docs.google.com/document/d/1_K3zENu_eCeaA8LuWVopbgAvjeiQtsmHfYPC-CmyXCY/edit?tab=t.0)
 
 How to run stuff:
