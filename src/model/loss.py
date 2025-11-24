@@ -1,4 +1,5 @@
 # heavily borrowed from: https://github.com/JingbiaoMei/RGCL/blob/main/src/model/loss.py
+# TODO: see if we want to introduce a new kind of loss as well
 
 import torch
 import torch.nn as nn
@@ -14,10 +15,11 @@ def compute_loss(batch, train_dl, model, args, train_set=None, train_feats=None,
     batch_size = len(ids)
     image_feats = batch["image_feats"].to(device)
     text_feats = batch["text_feats"].to(device)
+    face_feats = batch["face_feats"].to(device)
     labels = batch["labels"].to(device)
 
     model.train()
-    output, feats = model(image_feats, text_feats, return_embed=True)
+    output, feats = model(image_feats, text_feats, face_feats, return_embed=True)
 
     # We construct a matrix for label coincidences (Mask matrix for later loss computation)
     # 1 if the labels are the same (positive), 0 otherwise (negative)
@@ -30,9 +32,7 @@ def compute_loss(batch, train_dl, model, args, train_set=None, train_feats=None,
     # We first construct the inverse label, i.e., binary NOT operator on the label
     labels = labels.bool()
     labels_inverse = ~labels
-    label_matrix = torch.stack(
-        [labels if labels[i] == True else labels_inverse for i in range(batch_size)], axis=0
-    )
+    label_matrix = torch.stack([labels if labels[i] == True else labels_inverse for i in range(batch_size)], axis=0)
     label_matrix_negative = (~label_matrix).int()
 
     # We then compute the number of in-batch positives and negatives per sample in the batch vectors of sizes batch_size

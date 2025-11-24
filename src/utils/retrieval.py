@@ -24,9 +24,10 @@ def dense_retrieve_hard_negatives_pseudo_positive(train_dl, query_feats, query_l
         for i, batch in enumerate(train_dl):
             image_feats = batch["image_feats"].to(device)
             text_feats = batch["text_feats"].to(device)
+            face_feats = batch["face_feats"].to(device)
 
-            # Image+Text features after modality fusion
-            _, all_feats = model(image_feats, text_feats, return_embed=True)
+            # Image+Text+Face features after modality fusion
+            _, all_feats = model(image_feats, text_feats, face_feats, return_embed=True)
             if i == 0:
                 if Faiss_GPU:
                     train_feats = all_feats
