@@ -53,11 +53,12 @@ class RACDataset(Dataset):
     def __init__(self, feats, ids, labels):
         self.image_feats = feats[0]
         self.text_feats = feats[1]
+        self.face_feats = feats[2]
         self.ids = ids
         self.labels = labels
 
     def __getitem__(self, index):
-        return {"ids": self.ids[index], "image_feats": self.image_feats[index], "text_feats": self.text_feats[index], "labels": self.labels[index]}
+        return {"ids": self.ids[index], "image_feats": self.image_feats[index], "text_feats": self.text_feats[index], "face_feats": self.face_feats[index], "labels": self.labels[index]}
 
     def __len__(self):
         return len(self.ids)
@@ -66,22 +67,20 @@ def CLIP2Dataloader(*datasets, batch_size=128):
     dataloader_list = []
     dataset_list = []
     for index, dataset in enumerate(datasets):
-        ids,  img_feats, text_feats, labels = dataset
-        feats = (img_feats.float(), text_feats.float())
+        ids,  img_feats, text_feats, face_feats, labels = dataset
+        feats = (img_feats.float(), text_feats.float(), face_feats.float())
         dataset = RACDataset(feats, ids, labels)
         dataset_list.append(dataset)
         if index == 0:
             # For training set, shuffle the data
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
         else:
-            # For validation set, do not shuffle the data
-            # Batch size is 4 times larger than training set
-            dataloader = DataLoader(
-                dataset, batch_size=batch_size*4, shuffle=False, num_workers=0)
+            # For validation set, do not shuffle the data, batch size is 4 times larger than training set
+            dataloader = DataLoader(dataset, batch_size=batch_size*4, shuffle=False, num_workers=0)
         dataloader_list.append(dataloader)
     return dataloader_list, dataset_list
 
-# Called from generate_CLIP_embedding_HF
+# Called from generate_clip_embeddings
 def get_values_from_gt(split):
     gt_df = pd.read_json(f"./data/gt/FB/{split}.jsonl", lines=True, dtype=False)
     list_ids = gt_df["id"].values
@@ -104,16 +103,17 @@ def get_dataloader(preprocess, batch_size=128, num_workers=4, train_batch_size=3
 
     return train, dev_seen, test_seen, test_unseen
 
-# Called from run_rac: return the pre-extracted features from CLIP model
+# Called from train: return the pre-extracted features from CLIP model
 def load_feats_split(path, dataset=None):
     dict = torch.load(path)
     ids = dict["ids"]
     ids = [item for sublist in ids for item in sublist]
     img_feats = dict["img_feats"]
     text_feats = dict["text_feats"]
+    face_feats = dict["face_feats"]
     labels = dict["labels"]
 
-    return [ids, img_feats, text_feats, labels]
+    return [ids, img_feats, text_feats, face_feats, labels]
 
 def load_feats_from_CLIP(path, model):
     train = load_feats_split("{}/FB/train_{}.pt".format(path, model))

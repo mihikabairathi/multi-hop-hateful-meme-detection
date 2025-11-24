@@ -23,7 +23,7 @@ def retrieve_evaluate_RAC(train_dl, evaluate_dl, model, epoch, largest_retrieval
 
     for i, batch in enumerate(train_dl):
         train_ids.extend(batch["ids"])
-        out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), return_embed=True)
+        out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), batch["face_feats"].to('cuda'), return_embed=True)
         if i == 0:
             train_feats = all_feats
             train_labels = batch["labels"]
@@ -37,7 +37,7 @@ def retrieve_evaluate_RAC(train_dl, evaluate_dl, model, epoch, largest_retrieval
         for train_dl_ in train_dl_rest:
             for batch in train_dl_:
                 train_ids.extend(batch["ids"])
-                out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), return_embed=True)
+                out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), batch["face_feats"].to('cuda'), return_embed=True)
                 train_feats = torch.cat((train_feats, all_feats), dim=0)
                 train_labels = torch.cat((train_labels, batch["labels"]), dim=0)
                 train_out = torch.cat((train_out, out), dim=0)
@@ -48,7 +48,7 @@ def retrieve_evaluate_RAC(train_dl, evaluate_dl, model, epoch, largest_retrieval
     evaluate_labels = np.array([[]])
     for i, batch in enumerate(evaluate_dl):
         evaluate_ids.extend(batch["ids"])
-        out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), return_embed=True)
+        out, all_feats = model(batch["image_feats"].to('cuda'), batch["text_feats"].to('cuda'), batch["face_feats"].to('cuda'), return_embed=True)
         if i == 0:
             evaluate_feats = all_feats
             evaluate_labels = batch["labels"]

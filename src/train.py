@@ -19,9 +19,11 @@ def parse_args():
     arg_parser.add_argument("--similarity_threshold", type=float, default=-1.0)
     arg_parser.add_argument("--topk", type=int, default=20, help="Retrieve at most k pairs for validation")
     arg_parser.add_argument('--num_layers', type=int, default=3)
+    arg_parser.add_argument('--num_layers_face', type=int, default=3)
     arg_parser.add_argument('--proj_dim', type=int, default=1024)
     arg_parser.add_argument('--map_dim', type=int, default=1024)
     arg_parser.add_argument('--dropout', type=float, nargs=3, default=[0.2, 0.4, 0.1])
+    arg_parser.add_argument('--dropout_face', type=float, nargs=3, default=[0.2, 0.4, 0.1])
     arg_parser.add_argument("--epochs", type=int, default=30)
     arg_parser.add_argument("--batch_size", type=int, default=64)
     arg_parser.add_argument("--lr", type=float, default=0.0001)
@@ -91,7 +93,7 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
         )
 
         # Print out the summary of the epoch
-        print("Val_Retrieval Epoch  {} acc: {:.4f} roc: {:.4f} pre: {:.4f} recall: {:.4f} f1: {:.4f}".format(
+        print("Val_Retrieval Epoch {} acc: {:.4f} roc: {:.4f} pre: {:.4f} recall: {:.4f} f1: {:.4f}".format(
             epoch, acc, roc, pre, recall, f1)
         )
         print("Test_Retrieval Epoch {} acc: {:.4f} roc: {:.4f} pre: {:.4f} recall: {:.4f} f1: {:.4f}\n".format(
@@ -138,7 +140,9 @@ def main(args):
     # Construct the model
     image_feat_dim = list(enumerate(train_dl))[0][1]["image_feats"].shape[1]
     text_feat_dim = list(enumerate(train_dl))[0][1]["text_feats"].shape[1]
-    model = FirstHopHateClipper(image_feat_dim, text_feat_dim, args.num_layers, args.proj_dim, args.map_dim, args.dropout)
+    face_feat_dim = list(enumerate(train_dl))[0][1]["face_feats"].shape[1]
+    model = FirstHopHateClipper(image_feat_dim, text_feat_dim, face_feat_dim, args.num_layers, args.proj_dim, args.map_dim, args.dropout, 
+        args.num_layers_face, args.dropout_face)
     model.to(args.device)
     print(model)
 
