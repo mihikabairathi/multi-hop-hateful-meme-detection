@@ -1,3 +1,6 @@
 __pycache__/
 data/
 logging/
+weights/
+*.pth
+*.pkl
