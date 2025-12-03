@@ -1,5 +1,4 @@
 # heavily borrowed from: https://github.com/JingbiaoMei/RGCL/blob/main/src/utils/generate_CLIP_embedding_HF.py
-# TODO: fix to add "face_feats" to the tf files
 
 import argparse
 import sys

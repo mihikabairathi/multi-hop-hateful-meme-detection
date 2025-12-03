@@ -26,6 +26,7 @@ ec2-hibinit-agent==1.0.8
 einops==0.8.1
 eval_type_backport==0.3.0
 faiss-gpu==1.7.2
+fer==22.4.0
 filelock==3.19.1
 fonttools==4.60.1
 fsspec==2025.9.0
@@ -38,6 +39,7 @@ huggingface-hub==0.36.0
 idna==2.10
 importlib_metadata==8.7.0
 importlib_resources==6.5.2
+insightface==0.7.3
 Jinja2==2.11.3
 jmespath==0.10.0
 joblib==1.5.2
@@ -69,6 +71,8 @@ nvidia-nccl-cu12==2.27.3
 nvidia-nvjitlink-cu12==12.8.93
 nvidia-nvtx-cu12==12.8.90
 oauthlib==3.0.2
+onnxruntime==1.19.2
+onnxruntime-gpu==1.19.2
 openface-test==0.1.13
 packaging==25.0
 pandas==2.3.3
@@ -114,6 +118,7 @@ support-info==1.0
 sympy==1.14.0
 systemd-python==235
 threadpoolctl==3.6.0
+timm==1.0.22
 tokenizers==0.22.1
 torch==2.8.0
 torchaudio==2.8.0

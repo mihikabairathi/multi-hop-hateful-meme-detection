@@ -1,5 +1,5 @@
 # heavily borrowed from: https://github.com/JingbiaoMei/RGCL/blob/main/src/model/classifier.py
-# TODO: mess around with the model architecture, hyperparameters, and how we combine embeddings (ex: concat v/s mult)
+# TODO: mess around with the model architecture, hyperparameters, gates, weighted avg, combine embeddings (ex: concat v/s mult)
 
 import torch.nn as nn
 import torch
