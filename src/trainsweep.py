@@ -5,14 +5,13 @@ import torch
 import argparse
 import os
 import numpy as np
-
+import matplotlib.pyplot as plt
 from model.evaluate import retrieve_evaluate_RAC
 from model.classifier import MultiHopMemeClassifier
 from model.loss import compute_loss
 from utils.dataset import load_feats_from_CLIP, CLIP2Dataloader
 from utils.metrics import eval_and_save_epoch_end, compute_metrics_retrieval
 from tqdm import tqdm
-
 
 def parse_args():
     arg_parser = argparse.ArgumentParser()
@@ -66,7 +65,6 @@ def parse_args():
 
     return arg_parser.parse_args()
 
-
 def sweep_retrieval_thresholds(train_dl, eval_dl, model, args, split_name="dev"):
     """
     Sweep similarity_threshold over [threshold_min, threshold_max] and
@@ -110,7 +108,6 @@ def sweep_retrieval_thresholds(train_dl, eval_dl, model, args, split_name="dev")
 
     return best_thr, best_metrics
 
-
 def eval_at_threshold(train_dl, eval_dl, model, args, thr, split_name="test"):
     """
     Evaluate retrieval metrics at a fixed threshold on a given split.
@@ -143,6 +140,11 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
     best_roc = 0.0
     best_epoch_path = None
 
+    epoch_train_loss = []
+    epoch_eval_loss = []
+    epoch_eval_f1 = []
+    epoch_eval_roc = []
+
     # CSV metrics logging
     metrics_path = os.path.join(args.output_path, "metrics")
     os.makedirs(metrics_path, exist_ok=True)
@@ -161,7 +163,7 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
         ]) + "\n")
 
     for epoch in tqdm(range(epochs)):
-        # ----- training -----
+        # run training
         model.train()
         train_feats, train_labels = None, None
 
@@ -191,7 +193,7 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
                 train_labels=train_labels,
             )
 
-            # --- ALWAYS REBALANCE LOSS HERE ---
+            # rebalance loss
             loss_terms = []
 
             if args.in_batch_loss and not isinstance(in_batch_loss, int):
@@ -210,7 +212,6 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
                 total_loss = sum(loss_terms)
             else:
                 total_loss = base_total_loss  # fallback
-            # -----------------------------------
 
             train_feats = train_feats.detach()
             train_labels = train_labels.detach()
@@ -265,9 +266,8 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
         else:
             train_total_avg = train_inbatch_avg = train_hard_avg = train_pseudo_avg = train_ce_avg = 0.0
 
-        # ----- evaluation -----
+        # evaluation
         model.eval()
-        # retrieval-style dev eval (using current args.similarity_threshold)
         logging_dict, evaluate_labels = retrieve_evaluate_RAC(
             train_dl,
             evaluate_dl,
@@ -301,6 +301,12 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
         (acc_, roc_, pre_, recall_, f1_, eval_loss_), _ = eval_and_save_epoch_end(
             args.device, train_dl, evaluate_dl, test_seen_dl, model, epoch
         )
+
+        # store epoch-level metrics for plotting
+        epoch_train_loss.append(train_total_avg)
+        epoch_eval_loss.append(eval_loss_)
+        epoch_eval_f1.append(f1_)
+        epoch_eval_roc.append(roc_)
 
         print(
             "Val_Retrieval Epoch {} acc: {:.4f} roc: {:.4f} pre: {:.4f} recall: {:.4f} f1: {:.4f}".format(
@@ -356,10 +362,38 @@ def model_pass(train_dl, evaluate_dl, test_seen_dl, model, epochs, log_interval=
             last_path = os.path.join(args.output_path, "ckpt", f"last_model_{epoch}_{acc}.pt")
             torch.save(model.state_dict(), last_path)
 
-    # ----- threshold sweep after training -----
+    # threshold sweep after training
     best_thr, dev_best_metrics = sweep_retrieval_thresholds(train_dl, evaluate_dl, model, args, split_name="dev")
     if best_thr is not None:
         eval_at_threshold(train_dl, test_seen_dl, model, args, best_thr, split_name="test")
+
+    plt.figure(figsize=(8,6))
+    plt.plot(range(epochs), epoch_train_loss, label="Train Loss")
+    plt.plot(range(epochs), epoch_eval_loss, label="Val Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training vs Validation Loss")
+    plt.legend()
+    plt.savefig(os.path.join(args.output_path, "loss_curve.png"))
+    plt.close()
+
+    plt.figure(figsize=(8,6))
+    plt.plot(range(epochs), epoch_eval_f1, label="Val F1")
+    plt.xlabel("Epoch")
+    plt.ylabel("F1-score")
+    plt.title("Validation F1 per Epoch")
+    plt.legend()
+    plt.savefig(os.path.join(args.output_path, "f1_curve.png"))
+    plt.close()
+
+    plt.figure(figsize=(8,6))
+    plt.plot(range(epochs), epoch_eval_roc, label="Val AUROC")
+    plt.xlabel("Epoch")
+    plt.ylabel("AUROC")
+    plt.title("Validation AUROC per Epoch")
+    plt.legend()
+    plt.savefig(os.path.join(args.output_path, "roc_curve.png"))
+    plt.close()
 
     return model, best_epoch_path
 
@@ -368,9 +402,7 @@ def main(args):
     # experiment name and output dirs
     hard_negative_name = "_hard_negative_{}".format(args.no_hard_negatives)
     if args.no_pseudo_gold_positives != 0 and args.no_hard_positives != 0:
-        positive_name = (
-            f"_PseudoGold_positive_{args.no_pseudo_gold_positives}_hard_positive_{args.no_hard_positives}"
-        )
+        positive_name = (f"_PseudoGold_positive_{args.no_pseudo_gold_positives}_hard_positive_{args.no_hard_positives}")
     elif args.no_pseudo_gold_positives != 0:
         positive_name = f"_PseudoGold_positive_{args.no_pseudo_gold_positives}"
     elif args.no_hard_positives != 0:
@@ -395,12 +427,8 @@ def main(args):
         os.makedirs(os.path.join(args.output_path, "ckpt"), exist_ok=True)
 
     # load embeddings
-    train, dev, test_seen, test_unseen = load_feats_from_CLIP(
-        os.path.join(args.path, "CLIP_Embedding"), args.model
-    )
-    (train_dl, dev_dl, test_seen_dl), (train_set, _, _) = CLIP2Dataloader(
-        train, dev, test_seen, batch_size=args.batch_size
-    )
+    train, dev, test_seen, test_unseen = load_feats_from_CLIP(os.path.join(args.path, "CLIP_Embedding"), args.model)
+    (train_dl, dev_dl, test_seen_dl), (train_set, _, _) = CLIP2Dataloader(train, dev, test_seen, batch_size=args.batch_size)
 
     # dims
     first_batch = next(iter(train_dl))

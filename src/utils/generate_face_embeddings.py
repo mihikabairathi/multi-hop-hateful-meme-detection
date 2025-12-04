@@ -1,5 +1,5 @@
 # generate_face_embeddings.py
-#
+
 # Build rich face embeddings for memes by combining:
 #   - InsightFace (ArcFace) identity embeddings
 #   - FER (research-grade facial expression model) emotion probabilities
@@ -7,7 +7,7 @@
 #
 # The result is stored as "face_feats" in the existing CLIP .pt files:
 #   data/CLIP_Embedding/FB/{split}_{clip_model_name}.pt
-#
+
 # Assumes:
 #   - CLIP .pt files already exist from generate_clip_embeddings.py
 #   - InsightFace, FER, and OpenFace 3.0 are installed
@@ -16,15 +16,11 @@
 import argparse
 import os
 import sys
-
 import cv2
 import numpy as np
 import torch
 from tqdm import tqdm
 
-# ---------------------------
-# imports for face libraries
-# ---------------------------
 from insightface.app import FaceAnalysis          # identity (ArcFace)
 from openface.face_detection import FaceDetector  # gaze + AU
 from openface.multitask_model import MultitaskPredictor
@@ -41,9 +37,6 @@ except Exception:
     except Exception:
         FER = None  # will handle in build_emotion_model()
 
-# ---------------------------
-# import dataset utilities
-# ---------------------------
 try:
     from utils.dataset import get_values_from_gt
 except ImportError:
@@ -99,10 +92,6 @@ def parse_args():
     return parser.parse_args()
 
 
-# ---------------------------
-# Build models
-# ---------------------------
-
 def build_insightface(args):
     """
     ArcFace identity embedding via InsightFace (buffalo_l pack).
@@ -111,7 +100,6 @@ def build_insightface(args):
     ctx_id = 0 if args.device == "cuda" else -1
     app.prepare(ctx_id=ctx_id, det_size=tuple(args.insightface_detector_size))
     return app
-
 
 def build_emotion_model():
     """
@@ -129,7 +117,6 @@ def build_emotion_model():
     fer_model = FER(mtcnn=True)
     return fer_model
 
-
 def build_openface(args):
     """
     OpenFace 3.0 FaceDetector + MultitaskPredictor (AUs + gaze).
@@ -143,11 +130,6 @@ def build_openface(args):
         device=args.device,
     )
     return detector, multitask
-
-
-# ---------------------------
-# Per-component embeddings
-# ---------------------------
 
 def compute_identity_embedding_insightface(img_path, app):
     """
@@ -173,10 +155,7 @@ def compute_identity_embedding_insightface(img_path, app):
 
     return emb.astype(np.float32)
 
-
 EMOTION_ORDER = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
-
-
 def compute_emotion_embedding_fer(img_path, emo_model):
     """
     Returns emotion probability vector in EMOTION_ORDER using fer, or None.
@@ -241,11 +220,6 @@ def compute_openface_embedding(img_path, detector, multitask, resize=1.0):
     au_vec = au_output.squeeze(0).cpu().numpy().astype(np.float32)      # [n_AU]
     return np.concatenate([gaze_vec, au_vec], axis=0)
 
-
-# ---------------------------
-# Split processing
-# ---------------------------
-
 def process_split(split_name, args, app_insight, emo_model, of_detector, of_multitask):
     """
     For a given split:
@@ -266,14 +240,17 @@ def process_split(split_name, args, app_insight, emo_model, of_detector, of_mult
         # 1) identity
         id_vec = compute_identity_embedding_insightface(img_path, app_insight)
         comps["id"] = id_vec
+        # comps["id"] = None
 
         # 2) emotion (FER)
         emo_vec = compute_emotion_embedding_fer(img_path, emo_model)
         comps["emo"] = emo_vec
+        # comps["emo"] = None
 
         # 3) openface (gaze + AU)
         of_vec = compute_openface_embedding(img_path, of_detector, of_multitask, resize=args.openface_resize)
         comps["of"] = of_vec
+        # comps["of"] = None
 
         component_list.append(comps)
 
@@ -284,6 +261,9 @@ def process_split(split_name, args, app_insight, emo_model, of_detector, of_mult
                 return c[key].shape[0]
         return 0
 
+    # id_dim = 0
+    # emo_dim = 0
+    # of_dim = 0
     id_dim = infer_dim("id")
     emo_dim = infer_dim("emo")
     of_dim = infer_dim("of")
@@ -311,9 +291,7 @@ def process_split(split_name, args, app_insight, emo_model, of_detector, of_mult
 
     face_feats = torch.from_numpy(np.stack(final_vecs, axis=0))  # [N, D_total]
 
-    # ---------------------------
-    # Inject into CLIP .pt file
-    # ---------------------------
+    # inject into CLIP .pt file
     pt_path = os.path.join(args.EXP_FOLDER, "FB", f"{split_name}_{args.clip_model_name}.pt")
     if not os.path.exists(pt_path):
         raise FileNotFoundError(
